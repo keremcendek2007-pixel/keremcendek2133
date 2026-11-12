@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Görev Listesi</title>
+<style>
+  :root { --zemin:#f6f7f9; --kart:#fff; --yazi:#1d2433; --soluk:#6b7385; --cizgi:#dfe3ea; --ana:#1f5eff; --tehlike:#c62828; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--zemin); color:var(--yazi); }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 1.6rem; margin: 0 0 20px; }
+  .form, .kayit { background:var(--kart); border:1px solid var(--cizgi); border-radius:8px; padding:14px; }
+  .form { display:grid; gap:8px; margin-bottom:20px; }
+  input[type=text] { width:100%; padding:9px 10px; border:1px solid var(--cizgi); border-radius:6px; font:inherit; }
+  button { padding:8px 14px; border:0; border-radius:6px; background:var(--ana); color:#fff; font:inherit; cursor:pointer; }
+  button.ikincil { background:transparent; color:var(--ana); border:1px solid var(--cizgi); }
+  button.sil { background:transparent; color:var(--tehlike); border:1px solid var(--cizgi); }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--ana); outline-offset:2px; }
+  .kayit { display:flex; gap:12px; align-items:flex-start; margin-bottom:10px; }
+  .metin { flex:1; min-width:0; }
+  .metin strong { display:block; overflow-wrap:anywhere; }
+  .metin span { color:var(--soluk); font-size:.92rem; overflow-wrap:anywhere; }
+  .bitti strong { text-decoration: line-through; color:var(--soluk); }
+  .islemler { display:flex; gap:6px; flex-wrap:wrap; }
+  .bos { color:var(--soluk); text-align:center; padding:24px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Görev Listesi</h1>
+
+  <div class="form">
+    <input type="text" id="baslik" placeholder="Görev başlığı">
+    <input type="text" id="aciklama" placeholder="Açıklama (isteğe bağlı)">
+    <div><button id="kaydet">Görev ekle</button> <button id="vazgec" class="ikincil" hidden>Vazgeç</button></div>
+  </div>
+
+  <div id="liste"></div>
+</main>
+
+<script>
+  const API = '/api/gorevler';
+  const liste = document.getElementById('liste');
+  const baslik = document.getElementById('baslik');
+  const aciklama = document.getElementById('aciklama');
+  const kaydet = document.getElementById('kaydet');
+  const vazgec = document.getElementById('vazgec');
+  let duzenlenenId = null; // doluysa form "güncelleme" modundadır
+
+  async function yukle() {
+    const gorevler = await (await fetch(API)).json();
+    liste.innerHTML = '';
+    if (gorevler.length === 0) {
+      liste.innerHTML = '<p class="bos">Henüz görev yok. Yukarıdan ilk görevini ekle.</p>';
+      return;
+    }
+    gorevler.forEach((g) => {
+      const kutu = document.createElement('div');
+      kutu.className = 'kayit' + (g.tamamlandi ? ' bitti' : '');
+
+      const metin = document.createElement('div');
+      metin.className = 'metin';
+      const b = document.createElement('strong'); b.textContent = g.baslik;
+      const a = document.createElement('span'); a.textContent = g.aciklama || '';
+      metin.append(b, a);
+
+      const islemler = document.createElement('div');
+      islemler.className = 'islemler';
+      islemler.append(
+        dugme(g.tamamlandi ? 'Geri al' : 'Tamamla', 'ikincil', () => guncelle(g._id, { tamamlandi: !g.tamamlandi })),
+        dugme('Düzenle', 'ikincil', () => duzenle(g)),
+        dugme('Sil', 'sil', () => sil(g._id))
+      );
+      kutu.append(metin, islemler);
+      liste.append(kutu);
+    });
+  }
+
+  function dugme(yazi, sinif, tikla) {
+    const d = document.createElement('button');
+    d.textContent = yazi; d.className = sinif; d.onclick = tikla;
+    return d;
+  }
+
+  function formuSifirla() {
+    duzenlenenId = null;
+    baslik.value = ''; aciklama.value = '';
+    kaydet.textContent = 'Görev ekle';
+    vazgec.hidden = true;
+  }
+
+  function duzenle(g) {
+    duzenlenenId = g._id;
+    baslik.value = g.baslik; aciklama.value = g.aciklama || '';
+    kaydet.textContent = 'Değişiklikleri kaydet';
+    vazgec.hidden = false;
+    baslik.focus();
+  }
+
+  async function guncelle(id, veri) {
+    await fetch(`${API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(veri) });
+    yukle();
+  }
+
+  async function sil(id) {
+    if (!confirm('Bu görev silinsin mi?')) return;
+    await fetch(`${API}/${id}`, { method:'DELETE' });
+    yukle();
+  }
+
+  kaydet.onclick = async () => {
+    if (!baslik.value.trim()) { baslik.focus(); return; }
+    const veri = { baslik: baslik.value, aciklama: aciklama.value };
+    if (duzenlenenId) {
+      await guncelle(duzenlenenId, veri);
+    } else {
+      await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(veri) });
+    }
+    formuSifirla();
+    yukle();
+  };
+  vazgec.onclick = formuSifirla;
+
+  yukle();
+</script>
+</body>
+</html>

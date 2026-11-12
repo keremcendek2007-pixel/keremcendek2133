@@ -1,0 +1,16 @@
+{
+  "name": "express-mongo-crud",
+  "version": "1.0.0",
+  "description": "Express + MongoDB ile Ekle / Sil / Güncelle (CRUD) ödevi",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "mongodb": "^6.10.0"
+  }
+}
